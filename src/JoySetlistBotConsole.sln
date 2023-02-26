@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.489
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JoySetlistBotConsole", "ConsoleApp\JoySetlistBotConsole.csproj", "{01EFF175-E0B9-45BC-AA08-A867AD557297}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JoySetlistBotTests", "Tests\JoySetlistBotTests.csproj", "{B2F83D2E-1DAE-4020-988C-47D20A941ECB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{01EFF175-E0B9-45BC-AA08-A867AD557297}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01EFF175-E0B9-45BC-AA08-A867AD557297}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01EFF175-E0B9-45BC-AA08-A867AD557297}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01EFF175-E0B9-45BC-AA08-A867AD557297}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2F83D2E-1DAE-4020-988C-47D20A941ECB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2F83D2E-1DAE-4020-988C-47D20A941ECB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2F83D2E-1DAE-4020-988C-47D20A941ECB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2F83D2E-1DAE-4020-988C-47D20A941ECB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3121BF10-17F7-41E5-906D-2BE8983F5A4B}
+	EndGlobalSection
+EndGlobal
