@@ -420,7 +420,7 @@ static class Program
 
             if (setlistIndex != -1)
             {
-                await _bot.SendTextMessageAsync(chatId, string.Format("You can navigate through \"{0}\" setlists via Previous and Next buttons.", userSearchSetlists[chatId][setlistIndex].Artist.Name));
+                await _bot.SendTextMessageAsync(chatId, $"You can navigate through \"{userSearchSetlists[chatId][setlistIndex].Artist.Name}\" setlists via Previous and Next buttons.", replyMarkup: BotHelpers.HideKeyboard());
                 string text = Util.SetlistToText(userSearchSetlists[chatId][setlistIndex]);
                 await _bot.SendTextMessageAsync(chatId, text, ParseMode.Html, replyMarkup:
                     BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId][setlistIndex].Url));

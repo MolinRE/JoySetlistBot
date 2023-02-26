@@ -55,18 +55,15 @@ public static class BotHelpers
     public static IReplyMarkup OptionsKeyboard(params string[] args)
     {
         var keyboard = args.Select(s => new KeyboardButton[] { s }).ToArray();
-        return new ReplyKeyboardMarkup(keyboard);
+        return new ReplyKeyboardMarkup(keyboard)
+        {
+            OneTimeKeyboard = true
+        };
     }
 
-    public static IReplyMarkup HideKeyboard()
-    {
-        return new ReplyKeyboardRemove();
-    }
+    public static IReplyMarkup HideKeyboard() => new ReplyKeyboardRemove();
 
-    public static IReplyMarkup ForceReply()
-    {
-        return new ForceReplyMarkup();
-    }
+    public static IReplyMarkup ForceReply() => new ForceReplyMarkup();
 
     public static string GetDisplayName(Telegram.Bot.Types.User user)
     {
