@@ -14,7 +14,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\ConsoleApp\JoySetlistBotConsole.csproj" />
+      <ProjectReference Include="..\ConsoleApp\JoySetlistBot.csproj" />
     </ItemGroup>
 
 </Project>

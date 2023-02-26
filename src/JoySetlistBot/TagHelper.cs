@@ -1,4 +1,4 @@
-namespace JoySetlistBotConsole;
+namespace JoySetlistBot;
 
 public static class TagHelper
 {

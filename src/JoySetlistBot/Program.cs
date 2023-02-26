@@ -13,7 +13,7 @@ using Microsoft.Extensions.Configuration;
 using System.Threading;
 using Telegram.Bot.Polling;
 
-namespace JoySetlistBotConsole;
+namespace JoySetlistBot;
 
 static class Program
 {

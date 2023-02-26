@@ -1,4 +1,4 @@
-using JoySetlistBotConsole;
+using JoySetlistBot;
 using Xunit;
 
 namespace JoySetlistBotTests

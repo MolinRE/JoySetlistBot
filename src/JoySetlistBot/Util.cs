@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using SetlistNet.Models;
 
-namespace JoySetlistBotConsole;
+namespace JoySetlistBot;
 
 public static class Util
 {

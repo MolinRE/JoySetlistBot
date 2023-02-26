@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Telegram.Bot.Types.ReplyMarkups;
 
-namespace JoySetlistBotConsole;
+namespace JoySetlistBot;
 
 public static class BotHelpers
 {
