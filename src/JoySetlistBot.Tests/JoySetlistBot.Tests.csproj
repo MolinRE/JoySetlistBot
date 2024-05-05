@@ -5,6 +5,7 @@
         <IsPackable>false</IsPackable>
         <LangVersion>latestmajor</LangVersion>
         <Nullable>enable</Nullable>
+        <RootNamespace>JoySetlistBotTests</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
