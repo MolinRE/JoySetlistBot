@@ -52,7 +52,7 @@ static class Program
         ConfigureServices();
 
         using var cts = new CancellationTokenSource();
-        var me = await _bot.GetMeAsync(cts.Token);
+        var me = await _bot.GetMe(cts.Token);
         _logger.Information("Bot started, Id = {Id}, Name = {FirstName}", me.Id, me.FirstName);
 
         ReceiverOptions receiverOptions = new() { AllowedUpdates = new[]
@@ -139,15 +139,15 @@ static class Program
                     ProcessLocation(message);
                     break;
                 default:
-                    await _bot.SendTextMessageAsync(message.From.Id, "I can't work with " + message.Type + " :(");
+                    await _bot.SendMessage(message.From.Id, "I can't work with " + message.Type + " :(");
                     break;
             }
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Произошла ошибка при обработке сообщения пользователя");
-            await _bot.ForwardMessageAsync(80721641, message.Chat.Id, message.MessageId);
-            await _bot.SendTextMessageAsync(80721641, $"**Exception**: {ex.GetType().Name}\r\n**Message**: {ex.Message}\r\n**StackTrace**:\r\n{ex.StackTrace}", ParseMode.Markdown);
+            await _bot.ForwardMessage(80721641, message.Chat.Id, message.MessageId);
+            await _bot.SendMessage(80721641, $"**Exception**: {ex.GetType().Name}\r\n**Message**: {ex.Message}\r\n**StackTrace**:\r\n{ex.StackTrace}", ParseMode.Markdown);
         }
     }
 
@@ -183,7 +183,7 @@ static class Program
             }
 
             Setlist setlist = userSearchSetlists[chatId][setlistIndex];
-            await _bot.EditMessageTextAsync(chatId, messageId, Util.SetlistToText(setlist), ParseMode.Html,
+            await _bot.EditMessageText(chatId, messageId, Util.SetlistToText(setlist), ParseMode.Html,
                 replyMarkup: BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId][setlistIndex].Url));
         }
         catch (Exception ex)
@@ -224,7 +224,7 @@ static class Program
                     await ProcessHelp(message.From.Id);
                     break;
                 default:
-                    await _bot.SendTextMessageAsync(message.From.Id, "I don't know this command :(");
+                    await _bot.SendMessage(message.From.Id, "I don't know this command :(");
                     break;
             }
         }
@@ -247,14 +247,14 @@ static class Program
                         await GetSetlist(message.Text, message.From.Id);
                         break;
                     default:
-                        await _bot.SendTextMessageAsync(message.From.Id, "I don't know what you want, so I searched for some bands.");
+                        await _bot.SendMessage(message.From.Id, "I don't know what you want, so I searched for some bands.");
                         await FindBandsByName(message.Text, message.From.Id);
                         break;
                 }
             }
             else
             {
-                await _bot.SendTextMessageAsync(message.From.Id, "I don't know what you want, so I searched for some bands.");
+                await _bot.SendMessage(message.From.Id, "I don't know what you want, so I searched for some bands.");
                 await FindBandsByName(message.Text, message.From.Id);
             }
         }
@@ -262,7 +262,7 @@ static class Program
 
     private static async Task ProcessStartCmd(long chatId)
     {
-        await _bot.SendTextMessageAsync(chatId, "Hi! I'm JoySetlist Bot. I can help you to find setlists.\r\n" +
+        await _bot.SendMessage(chatId, "Hi! I'm JoySetlist Bot. I can help you to find setlists.\r\n" +
                                                 "I am working with the help of Setlist.FM so I usually show the same setlists you can find there.\r\n" +
                                                 "So, why don't you try me? Use /search command and send me the name of your favorite band!");
     }
@@ -271,7 +271,7 @@ static class Program
     {
         if (string.IsNullOrEmpty(artistName))
         {
-            await _bot.SendTextMessageAsync(chatId, botSearchResponse, replyMarkup: BotHelpers.ForceReply());
+            await _bot.SendMessage(chatId, botSearchResponse, replyMarkup: BotHelpers.ForceReply());
             sessionRequest[chatId] = "bandName";
         }
         else
@@ -284,7 +284,7 @@ static class Program
     {
         if (string.IsNullOrEmpty(searchQuery))
         {
-            await _bot.SendTextMessageAsync(chatId, botSearchAdvResponse, replyMarkup: BotHelpers.ForceReply(), parseMode: ParseMode.Markdown);
+            await _bot.SendMessage(chatId, botSearchAdvResponse, replyMarkup: BotHelpers.ForceReply(), parseMode: ParseMode.Markdown);
             sessionRequest[chatId] = "searchQuery";
         }
         else
@@ -305,7 +305,7 @@ static class Program
             else
             {
                 userSearchArtists[chatId] = artists;
-                await _bot.SendTextMessageAsync(chatId, "Please, select a band you would like to see setlists for:",
+                await _bot.SendMessage(chatId, "Please, select a band you would like to see setlists for:",
                     replyMarkup: BotHelpers.OptionsKeyboard(artists.Select(a => a.NameWithDisambiguation).ToArray()));
                 sessionRequest[chatId] = "clarifyBandName";
             }
@@ -315,7 +315,7 @@ static class Program
             HttpWebResponse response = ex.Response as HttpWebResponse;
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                await _bot.SendTextMessageAsync(chatId, botSearchNoResultsResponse, replyMarkup: BotHelpers.HideKeyboard());
+                await _bot.SendMessage(chatId, botSearchNoResultsResponse, replyMarkup: BotHelpers.HideKeyboard());
                 sessionRequest.Remove(chatId);
             }
             else
@@ -328,7 +328,7 @@ static class Program
         {
             _logger.Error("Error occured while FindBandsByName. Exception: {0}. Message: {1}. Inner: {2}.",
                 ex.GetType().Name, ex.Message, ex.InnerException == null ? "null" : ex.InnerException.GetType().Name + ", " + ex.InnerException.Message);
-            await _bot.SendTextMessageAsync(chatId, botErrorResponse, replyMarkup: BotHelpers.HideKeyboard());
+            await _bot.SendMessage(chatId, botErrorResponse, replyMarkup: BotHelpers.HideKeyboard());
             sessionRequest.Remove(chatId);
         }
     }
@@ -342,7 +342,7 @@ static class Program
 
             userQuery[chatId] = searchFields;
             userSearchSetlists[chatId] = setlists;
-            await _bot.SendTextMessageAsync(chatId, Util.SetlistsToTextHtml(setlists), ParseMode.Html, replyMarkup:
+            await _bot.SendMessage(chatId, Util.SetlistsToTextHtml(setlists), ParseMode.Html, replyMarkup:
                 BotHelpers.OptionsKeyboard(setlists.Select(s => s.GetEventDateTime("dd.MM.yyyy")).ToArray()));
 
             sessionRequest[chatId] = "recentSetlists";
@@ -352,7 +352,7 @@ static class Program
             HttpWebResponse response = ex.Response as HttpWebResponse;
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                await _bot.SendTextMessageAsync(chatId, botSearchAdvNoResultsResponse, replyMarkup: BotHelpers.HideKeyboard());
+                await _bot.SendMessage(chatId, botSearchAdvNoResultsResponse, replyMarkup: BotHelpers.HideKeyboard());
                 sessionRequest.Remove(chatId);
             }
             else
@@ -365,7 +365,7 @@ static class Program
         {
             _logger.Error("Error occured while FindBandsByQuery. Exception: {0}. Message: {1}. Inner: {2}.",
                 ex.GetType().Name, ex.Message, ex.InnerException == null ? "null" : ex.InnerException.GetType().Name + ", " + ex.InnerException.Message);
-            await _bot.SendTextMessageAsync(chatId, botErrorResponse, replyMarkup: BotHelpers.HideKeyboard());
+            await _bot.SendMessage(chatId, botErrorResponse, replyMarkup: BotHelpers.HideKeyboard());
             sessionRequest.Remove(chatId);
         }
     }
@@ -381,7 +381,8 @@ static class Program
             }
             else
             {
-                await _bot.SendTextMessageAsync(chatId, string.Format("Sorry, but I don't know any artist called \"{0}\".", nameWithDisambiguation));
+                await _bot.SendMessage(chatId,
+                    $"Sorry, but I don't know any artist called \"{nameWithDisambiguation}\".");
             }
         }
         catch (Exception ex)
@@ -399,7 +400,7 @@ static class Program
 
             userQuery[chatId] = new Setlist(new Artist() { MBID = mbid });
             userSearchSetlists[chatId] = artistSetlists;
-            await _bot.SendTextMessageAsync(chatId, Util.SetlistsToTextHtml(artistSetlists), ParseMode.Html, replyMarkup:
+            await _bot.SendMessage(chatId, Util.SetlistsToTextHtml(artistSetlists), ParseMode.Html, replyMarkup:
                 BotHelpers.OptionsKeyboard(artistSetlists.Select(s => s.GetEventDateTime("dd.MM.yyyy")).ToArray()));
 
             sessionRequest[chatId] = "recentSetlists";
@@ -420,14 +421,14 @@ static class Program
 
             if (setlistIndex != -1)
             {
-                await _bot.SendTextMessageAsync(chatId, $"You can navigate through \"{userSearchSetlists[chatId][setlistIndex].Artist.Name}\" setlists via Previous and Next buttons.", replyMarkup: BotHelpers.HideKeyboard());
+                await _bot.SendMessage(chatId, $"You can navigate through \"{userSearchSetlists[chatId][setlistIndex].Artist.Name}\" setlists via Previous and Next buttons.", replyMarkup: BotHelpers.HideKeyboard());
                 string text = Util.SetlistToText(userSearchSetlists[chatId][setlistIndex]);
-                await _bot.SendTextMessageAsync(chatId, text, ParseMode.Html, replyMarkup:
+                await _bot.SendMessage(chatId, text, ParseMode.Html, replyMarkup:
                     BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId][setlistIndex].Url));
             }
             else
             {
-                await _bot.SendTextMessageAsync(chatId, string.Format("There aren't any setlists from {0}.", eventDate));
+                await _bot.SendMessage(chatId, $"There aren't any setlists from {eventDate}.");
             }
         }
         catch (Exception ex)
@@ -439,6 +440,6 @@ static class Program
 
     private static async Task ProcessHelp(long chatId)
     {
-        await _bot.SendTextMessageAsync(chatId, botHelpResponse, parseMode: ParseMode.Markdown);
+        await _bot.SendMessage(chatId, botHelpResponse, parseMode: ParseMode.Markdown);
     }
 }
