@@ -34,10 +34,13 @@ static class Program
                                             "`   artist year`\r\n" +
                                             "`   artist year city`\r\n";
 
-    private static Dictionary<long, Setlist> userQuery = new();
+    private static Dictionary<long, UserSearchQuery> userQuery = new();
     private static Dictionary<long, Artists> userSearchArtists = new();
     private static Dictionary<long, Setlists> userSearchSetlists = new();
-
+    
+    private static Dictionary<long, string> userArtistMbid = new();
+    
+    
     private static Dictionary<long, string> sessionRequest = new();
     private static Dictionary<long, Location> userLocations = new();
 
@@ -66,7 +69,7 @@ static class Program
         Console.ReadLine();
 
         // Send cancellation request to stop bot
-        cts.Cancel();
+        await cts.CancelAsync();
     }
 
     private static void ConfigureServices()
@@ -80,8 +83,8 @@ static class Program
             Configuration = builder.Build();
         }
 
-        _setlistFm = new SetlistApi(Configuration["SETLISTFM_API_KEY"], "en");
-        _bot = new TelegramBotClient(Configuration["JOYSETLIST_BOT_TOKEN"]);
+        _setlistFm = new(Configuration["SETLISTFM_API_KEY"]!);
+        _bot = new(Configuration["JOYSETLIST_BOT_TOKEN"]!);
     }
         
     static Task HandleErrorAsync(ITelegramBotClient botClient, Exception ex, CancellationToken cancellationToken)
@@ -155,7 +158,7 @@ static class Program
     {
         _logger.Information("Received CallbackQuery. Data: {data}.", callbackQuery.Data);
 
-        string[] callbackData = callbackQuery.Data.Split(' ');
+        var callbackData = callbackQuery.Data.Split(' ');
         if (callbackData[0] == "Edit")
         {
             await ProcessEditSetlist(Convert.ToInt32(callbackData[1]), (int)callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId);
@@ -165,7 +168,7 @@ static class Program
     // setlistIndex - index of next/previous setlist to load
     private static async Task ProcessEditSetlist(int setlistIndex, long chatId, int messageId)
     {
-        string itemsPerPage = userSearchSetlists[chatId] == null ? "null" : userSearchSetlists[chatId].ItemsPerPage.ToString();
+        var itemsPerPage = userSearchSetlists[chatId] == null ? "null" : userSearchSetlists[chatId].ItemsPerPage.ToString();
         _logger.Information("Process edit setlist. SetlistIndex: {setlistIndex}. ItemsPerPage: {itemsPerPage}.", setlistIndex, itemsPerPage);
 
         try
@@ -173,18 +176,26 @@ static class Program
             if (setlistIndex == userSearchSetlists[chatId].ItemsPerPage)
             {
                 // there is no "Next" button if Page is the last Page, so we can skip the verification
-                userSearchSetlists[chatId] = _setlistFm.SearchSetlists(userQuery[chatId], userSearchSetlists[chatId].Page + 1);
+                userSearchSetlists[chatId] = await _setlistFm.SearchSetlists(
+                    artistName: userQuery[chatId].ArtistName, 
+                    year: userQuery[chatId].EventYear, 
+                    cityName: userQuery[chatId].CityName,
+                    page: userSearchSetlists[chatId].Page + 1);
                 setlistIndex = 0;
             }
             else if (setlistIndex == -1)
             {
-                userSearchSetlists[chatId] = _setlistFm.SearchSetlists(userQuery[chatId], userSearchSetlists[chatId].Page - 1);
+                userSearchSetlists[chatId] = await _setlistFm.SearchSetlists(
+                    artistName: userQuery[chatId].ArtistName, 
+                    year: userQuery[chatId].EventYear, 
+                    cityName: userQuery[chatId].CityName,
+                    page: userSearchSetlists[chatId].Page - 1);
                 setlistIndex = userSearchSetlists[chatId].ItemsPerPage - 1; // because Count of array (i.e. ItemsPerPage) not equals last index in array.
             }
 
-            Setlist setlist = userSearchSetlists[chatId][setlistIndex];
+            Setlist setlist = userSearchSetlists[chatId].Items.ElementAt(setlistIndex);
             await _bot.EditMessageText(chatId, messageId, Util.SetlistToText(setlist), ParseMode.Html,
-                replyMarkup: BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId][setlistIndex].Url));
+                replyMarkup: BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId].Items.ElementAt(setlistIndex).Url));
         }
         catch (Exception ex)
         {
@@ -204,7 +215,7 @@ static class Program
 
         if (message.Text[0] == '/')
         {
-            string[] commandWords = message.Text.Split(' ');
+            var commandWords = message.Text.Split(' ');
             string additionParams = null;
             if (commandWords.Length > 0)
                 additionParams = string.Join(" ", commandWords, 1, commandWords.Length - 1);
@@ -297,22 +308,22 @@ static class Program
     {
         try
         {
-            Artists artists = _setlistFm.SearchArtists(bandName);
-            if (artists.Count == 1)
+            var artists = await _setlistFm.SearchArtists(artistName: bandName);
+            if (artists.Items.Count == 1)
             {
-                await FindRecentSetlists(artists[0].MBID, chatId);
+                await FindRecentSetlists(artists.Items.First().MBID, chatId);
             }
             else
             {
                 userSearchArtists[chatId] = artists;
                 await _bot.SendMessage(chatId, "Please, select a band you would like to see setlists for:",
-                    replyMarkup: BotHelpers.OptionsKeyboard(artists.Select(a => a.NameWithDisambiguation).ToArray()));
+                    replyMarkup: BotHelpers.OptionsKeyboard(artists.Items.Select(a => a.GetNameWithDisambiguation()).ToArray()));
                 sessionRequest[chatId] = "clarifyBandName";
             }
         }
         catch (WebException ex)
         {
-            HttpWebResponse response = ex.Response as HttpWebResponse;
+            var response = ex.Response as HttpWebResponse;
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
                 await _bot.SendMessage(chatId, botSearchNoResultsResponse, replyMarkup: BotHelpers.HideKeyboard());
@@ -337,19 +348,23 @@ static class Program
     {
         try
         {
-            Setlist searchFields = Util.ParseQuery(searchQuery);
-            Setlists setlists = _setlistFm.SearchSetlists(searchFields);
+            var searchFields = Util.ParseQuery(searchQuery);
+            var setlists = await _setlistFm.SearchSetlists(
+                artistName: searchFields.ArtistName,
+                year: searchFields.EventYear,
+                cityName: searchFields.CityName
+                );
 
             userQuery[chatId] = searchFields;
             userSearchSetlists[chatId] = setlists;
             await _bot.SendMessage(chatId, Util.SetlistsToTextHtml(setlists), ParseMode.Html, replyMarkup:
-                BotHelpers.OptionsKeyboard(setlists.Select(s => s.GetEventDateTime("dd.MM.yyyy")).ToArray()));
+                BotHelpers.OptionsKeyboard(setlists.Items.Select(s => s.EventDate.ToString("dd.MM.yyyy")).ToArray()));
 
             sessionRequest[chatId] = "recentSetlists";
         }
         catch (WebException ex)
         {
-            HttpWebResponse response = ex.Response as HttpWebResponse;
+            var response = ex.Response as HttpWebResponse;
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
                 await _bot.SendMessage(chatId, botSearchAdvNoResultsResponse, replyMarkup: BotHelpers.HideKeyboard());
@@ -374,7 +389,7 @@ static class Program
     {
         try
         {
-            Artist artist = userSearchArtists[chatId].FirstOrDefault(a => a.NameWithDisambiguation.Equals(nameWithDisambiguation));
+            var artist = userSearchArtists[chatId].Items.FirstOrDefault(a => a.GetNameWithDisambiguation().Equals(nameWithDisambiguation));
             if (artist != null)
             {
                 await FindRecentSetlists(artist.MBID, chatId);
@@ -396,12 +411,12 @@ static class Program
     {
         try
         {
-            Setlists artistSetlists = _setlistFm.ArtistSetlists(mbid);
+            var artistSetlists = await _setlistFm.ArtistSetlists(mbid);
 
-            userQuery[chatId] = new Setlist(new Artist() { MBID = mbid });
+            userArtistMbid[chatId] = mbid;
             userSearchSetlists[chatId] = artistSetlists;
             await _bot.SendMessage(chatId, Util.SetlistsToTextHtml(artistSetlists), ParseMode.Html, replyMarkup:
-                BotHelpers.OptionsKeyboard(artistSetlists.Select(s => s.GetEventDateTime("dd.MM.yyyy")).ToArray()));
+                BotHelpers.OptionsKeyboard(artistSetlists.Items.Select(s => s.EventDate.ToString("dd.MM.yyyy")).ToArray()));
 
             sessionRequest[chatId] = "recentSetlists";
         }
@@ -416,15 +431,25 @@ static class Program
     {
         try
         {
-            var setlist = userSearchSetlists[chatId].FirstOrDefault(s => s.GetEventDateTime("dd.MM.yyyy").Equals(eventDate, StringComparison.InvariantCulture));
-            var setlistIndex = userSearchSetlists[chatId].IndexOf(setlist);
+            var setlist = userSearchSetlists[chatId].Items.FirstOrDefault(s => s.EventDate.ToString("dd.MM.yyyy").Equals(eventDate, StringComparison.InvariantCulture));
+
+            int setlistIndex = 0;
+            foreach (var s in userSearchSetlists[chatId].Items)
+            {
+                if (s == setlist)
+                {
+                    break;
+                }
+
+                setlistIndex++;
+            }
 
             if (setlistIndex != -1)
             {
-                await _bot.SendMessage(chatId, $"You can navigate through \"{userSearchSetlists[chatId][setlistIndex].Artist.Name}\" setlists via Previous and Next buttons.", replyMarkup: BotHelpers.HideKeyboard());
-                string text = Util.SetlistToText(userSearchSetlists[chatId][setlistIndex]);
+                await _bot.SendMessage(chatId, $"You can navigate through \"{userSearchSetlists[chatId].Items.ElementAt(setlistIndex).Artist.Name}\" setlists via Previous and Next buttons.", replyMarkup: BotHelpers.HideKeyboard());
+                var text = Util.SetlistToText(userSearchSetlists[chatId].Items.ElementAt(setlistIndex));
                 await _bot.SendMessage(chatId, text, ParseMode.Html, replyMarkup:
-                    BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId][setlistIndex].Url));
+                    BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId].Items.ElementAt(setlistIndex).Url));
             }
             else
             {

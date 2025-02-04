@@ -7,10 +7,10 @@ namespace JoySetlistBot;
 
 public static class BotHelpers
 {
-    public static InlineKeyboardMarkup GetNextPrevButtons<T>(int index, ApiArrayResult<T> pagesInfo, string url)
+    public static InlineKeyboardMarkup GetNextPrevButtons(int index, ApiArrayResult pagesInfo, string url)
     {
         InlineKeyboardMarkup reply;
-        if (pagesInfo.Count == 1)
+        if (pagesInfo.Total == 1)
         {
             var keyboard = new List<InlineKeyboardButton>();
             keyboard.Add(new InlineKeyboardButton("Setlist FM") { Url = url });
@@ -19,7 +19,7 @@ public static class BotHelpers
             return reply;
         }
 
-        int maxIndex = (pagesInfo.Total % pagesInfo.ItemsPerPage) - 1;
+        var maxIndex = (pagesInfo.Total % pagesInfo.ItemsPerPage) - 1;
         if (maxIndex == -1)
             maxIndex = pagesInfo.ItemsPerPage;
 
@@ -69,7 +69,7 @@ public static class BotHelpers
     {
         if (string.IsNullOrEmpty(user.Username))
         {
-            string result = user.FirstName;
+            var result = user.FirstName;
             if (!string.IsNullOrEmpty(user.LastName))
             {
                 result += " " + user.LastName;

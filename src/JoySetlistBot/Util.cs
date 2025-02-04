@@ -18,21 +18,21 @@ public static class Util
     {
         var text = new StringBuilder();
         var venue = setlist.Venue;
-        text.AppendLine($"[{setlist.GetEventDateTime("MMM dd yyyy", CultureInfo.GetCultureInfo("en-US"))}] {TagHelper.Href(setlist.Artist.UrlStats, setlist.Artist.Name)} setlist");
+        text.AppendLine($"[{setlist.EventDate.ToString("MMM dd yyyy", CultureInfo.GetCultureInfo("en-US"))}] {TagHelper.Href(setlist.Artist.UrlStats, setlist.Artist.Name)} setlist");
         text.AppendLine($"at {TagHelper.Href(venue.Url, $"{venue.Name}, {venue.City.Name}, {venue.City.Country.Name}")}");
-        if (!string.IsNullOrEmpty(setlist.TourName))
+        if (!string.IsNullOrEmpty(setlist.Tour?.Name))
         {
             text.AppendLine($"Tour: {setlist.Tour.Name}");
         }
 
-        int count = 0;
-        foreach (Set set in setlist.Sets)
+        var count = 0;
+        foreach (var set in setlist.Sets.SetCollection)
         {
-            if (set.EncoreSpecified || !string.IsNullOrEmpty(set.Name))
+            if (set.Encore.HasValue || !string.IsNullOrEmpty(set.Name))
             {
                 text.AppendLine();
-                string setName = set.Name;
-                if (set.EncoreSpecified)
+                var setName = set.Name;
+                if (set.Encore.HasValue)
                     setName = "Encore " + set.Encore;
                 if (setName != " ")
                 {
@@ -43,7 +43,7 @@ public static class Util
                 }
             }
 
-            foreach (Song song in set.Songs)
+            foreach (var song in set.Songs)
             {
                 text.AppendFormat("{0}. {1}", ++count, song.Name.Trim() == "" ? "Unknown" : song.Name);
                 if (song.Cover != null || song.With != null)
@@ -82,11 +82,11 @@ public static class Util
     public static string SetlistsToText(Setlists setlists, int count = 7, bool useHtml = true)
     {
         var text = new StringBuilder();
-        foreach (Setlist setlist in setlists.Take(count))
+        foreach (var setlist in setlists.Items.Take(count))
         {
             text.AppendFormat("[{0:dd.MM.yyyy}, {2}] {1}, {3}.",
-                setlist.GetEventDateTime(), setlist.Venue.City.Name, setlist.Venue.City.Country.Code, setlist.Venue.Name);
-            if (!string.IsNullOrEmpty(setlist.TourName))
+                setlist.EventDate, setlist.Venue.City.Name, setlist.Venue.City.Country.Code, setlist.Venue.Name);
+            if (!string.IsNullOrEmpty(setlist.Tour?.Name))
             {
                 text.AppendFormat(" ({0} tour)", setlist.Tour.Name);
             }
@@ -105,18 +105,18 @@ public static class Util
     public static string SetlistsToTextHtml(Setlists setlists, int count = 7, bool useHtml = true)
     {
         var text = new StringBuilder();
-        int year = DateTime.Now.Year;
-        foreach (Setlist setlist in setlists.Take(count))
+        var year = DateTime.Now.Year;
+        foreach (var setlist in setlists.Items.Take(count))
         {
-            var date = setlist.GetEventDateTime();
-            if (date.HasValue && date.Value.Year != year)
+            var date = setlist.EventDate;
+            if (date.Year != year)
             {
-                year = date.Value.Year;
+                year = date.Year;
                 text.AppendLine($"<b>{year}</b>:");
             }
 
             text.AppendFormat("[{0:dd.MM}] {1} {2}.",
-                setlist.GetEventDateTime(), setlist.Venue.City.Name, setlist.Venue.City.Country.Code, setlist.Venue.Name);
+                setlist.EventDate, setlist.Venue.City.Name, setlist.Venue.City.Country.Code, setlist.Venue.Name);
             text.AppendLine();
         }
 
@@ -124,32 +124,31 @@ public static class Util
     }
 
     // Parse the query string and return Setlist object used to search for setlists
-    public static Setlist ParseQuery(string query)
+    public static UserSearchQuery? ParseQuery(string query)
     {
         if (query.Length == 0)
         {
             return null;
         }
 
-        var result = new Setlist();
-        result.Artist = new Artist();
+        var result = new UserSearchQuery();
         string[] keywords = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         if (IsYear(keywords[^1]))
         {
-            result.EventDate = "00-00-" + keywords[^1];
-            result.Artist.Name = string.Join(" ", keywords.Take(keywords.Length - 1));
+            result.EventYear = int.Parse(keywords[^1]);
+            result.ArtistName = string.Join(" ", keywords.Take(keywords.Length - 1));
         }
         else
         {
-            result.Venue = new Venue(new City(keywords[^1]));
+            result.CityName = keywords[^1];
             if (keywords.Length > 2 && IsYear(keywords[^2]))
             {
-                result.EventDate = "00-00-" + keywords[^2];
-                result.Artist.Name = string.Join(" ", keywords.Take(keywords.Length - 2));
+                result.EventYear = int.Parse(keywords[^2]);
+                result.ArtistName = string.Join(" ", keywords.Take(keywords.Length - 2));
             }
             else
             {
-                result.Artist.Name = string.Join(" ", keywords.Take(keywords.Length - 1));
+                result.ArtistName = string.Join(" ", keywords.Take(keywords.Length - 1));
             }
         }
 
