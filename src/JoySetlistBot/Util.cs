@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using SetlistNet.Models;
+using SetlistNet.Models.ArrayResult;
 
 namespace JoySetlistBot;
 
@@ -26,7 +27,7 @@ public static class Util
         }
 
         var count = 0;
-        foreach (var set in setlist.Sets.SetCollection)
+        foreach (var set in setlist.Sets.Set)
         {
             if (set.Encore.HasValue || !string.IsNullOrEmpty(set.Name))
             {
@@ -82,7 +83,7 @@ public static class Util
     public static string SetlistsToText(Setlists setlists, int count = 7, bool useHtml = true)
     {
         var text = new StringBuilder();
-        foreach (var setlist in setlists.Items.Take(count))
+        foreach (var setlist in setlists.Setlist.Take(count))
         {
             text.AppendFormat("[{0:dd.MM.yyyy}, {2}] {1}, {3}.",
                 setlist.EventDate, setlist.Venue.City.Name, setlist.Venue.City.Country.Code, setlist.Venue.Name);
@@ -106,7 +107,7 @@ public static class Util
     {
         var text = new StringBuilder();
         var year = DateTime.Now.Year;
-        foreach (var setlist in setlists.Items.Take(count))
+        foreach (var setlist in setlists.Setlist.Take(count))
         {
             var date = setlist.EventDate;
             if (date.Year != year)

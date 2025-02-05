@@ -10,6 +10,8 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Microsoft.Extensions.Configuration;
+using SetlistNet.Models.ArrayResult;
+using SetlistNet.Models.Enum;
 using System.Threading;
 using Telegram.Bot.Polling;
 
@@ -23,16 +25,16 @@ static class Program
     private static string botSearchResponse = "Please, enter a band name or a part of it to find the setlist:";
 
     private static string botSearchAdvResponse = "Please, enter the query to find setlists. Use one of the following formats:\r\n" +
-                                                 "`  artist city`\r\n" +
-                                                 "`  artist year`\r\n" +
-                                                 "`  artist year city`\r\n";
+                                                 "- <code>artist city</code>\r\n" +
+                                                 "- <code>artist year</code>\r\n" +
+                                                 "- <code>artist year city</code>\r\n";
 
     private static string botHelpResponse = "You can search for setlists with following commands:\r\n" +
-                                            "`/search` - Use this command to search for setlists of certain artist.\r\n" +
-                                            "`/search_adv` - This command works the same but you can also specify year and city of setlists. Please, enter the search query in one of the following formats:\r\n" +
-                                            "`   artist city`\r\n" +
-                                            "`   artist year`\r\n" +
-                                            "`   artist year city`\r\n";
+                                            "/search - Use this command to search for setlists of certain artist.\r\n" +
+                                            "/search_adv - This command works the same but you can also specify year and city of setlists. Please, enter the search query in one of the following formats:\r\n" +
+                                            "- <code>artist city</code>\r\n" +
+                                            "- <code>artist year</code>\r\n" +
+                                            "- <code>artist year city</code>\r\n";
 
     private static Dictionary<long, UserSearchQuery> userQuery = new();
     private static Dictionary<long, Artists> userSearchArtists = new();
@@ -44,19 +46,16 @@ static class Program
     private static Dictionary<long, string> sessionRequest = new();
     private static Dictionary<long, Location> userLocations = new();
 
-    private static IConfigurationRoot Configuration;
+    private static IConfigurationRoot _configuration;
     private static TelegramBotClient _bot;
     private static SetlistApi _setlistFm;
-    private static readonly ILogger _logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
+    private static readonly ILogger Logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
 
     static async Task Main()
     {
-        Console.WriteLine("JoySetlist bot started");
         ConfigureServices();
 
         using var cts = new CancellationTokenSource();
-        var me = await _bot.GetMe(cts.Token);
-        _logger.Information("Bot started, Id = {Id}, Name = {FirstName}", me.Id, me.FirstName);
 
         ReceiverOptions receiverOptions = new() { AllowedUpdates = new[]
         {
@@ -65,6 +64,7 @@ static class Program
         }};
         _bot.StartReceiving(HandleUpdateAsync, HandleErrorAsync, receiverOptions, cts.Token);
         
+        var me = await _bot.GetMe(cts.Token);
         Console.WriteLine($"Start listening for @{me.Username}");
         Console.ReadLine();
 
@@ -74,22 +74,22 @@ static class Program
 
     private static void ConfigureServices()
     {
-        if (Configuration == null)
+        if (_configuration == null)
         {
             var builder = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                 .AddEnvironmentVariables();
 
-            Configuration = builder.Build();
+            _configuration = builder.Build();
         }
 
-        _setlistFm = new(Configuration["SETLISTFM_API_KEY"]!);
-        _bot = new(Configuration["JOYSETLIST_BOT_TOKEN"]!);
+        _setlistFm = new(_configuration["SETLISTFM_API_KEY"]!);
+        _bot = new(_configuration["JOYSETLIST_BOT_TOKEN"]!);
     }
         
     static Task HandleErrorAsync(ITelegramBotClient botClient, Exception ex, CancellationToken cancellationToken)
     {
-        _logger.Error(ex, "Ошибка перехвачена в HandleErrorAsync");
+        Logger.Error(ex, "Ошибка перехвачена в HandleErrorAsync");
             
         return Task.CompletedTask;
     }
@@ -98,25 +98,10 @@ static class Program
     {
         await BotOnUpdate(update);
     }
-        
-    public static void Log(this Exception ex, Update args)
-    {
-        _logger.Error(ex, "MessageType {Type} from {@From} text \"{Text}\" reply to {ReplyMessageType} \"{ReplyMessageText}\"", 
-            args.Message.Type, 
-            new
-            {
-                args.Message.From.Username, 
-                args.Message.From.FirstName, 
-                args.Message.From.LastName
-            }, 
-            args.Message.Text, 
-            args.Message.ReplyToMessage?.Type,
-            args.Message.ReplyToMessage?.Text);
-    }
 
     private static async Task BotOnUpdate(Update update)
     {
-        _logger.Information("Received [{type}].", update.Type);
+        Logger.Information("Received [{type}].", update.Type);
 
         switch (update.Type)
         {
@@ -148,7 +133,7 @@ static class Program
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Произошла ошибка при обработке сообщения пользователя");
+            Logger.Error(ex, "Произошла ошибка при обработке сообщения пользователя");
             await _bot.ForwardMessage(80721641, message.Chat.Id, message.MessageId);
             await _bot.SendMessage(80721641, $"**Exception**: {ex.GetType().Name}\r\n**Message**: {ex.Message}\r\n**StackTrace**:\r\n{ex.StackTrace}", ParseMode.Markdown);
         }
@@ -156,7 +141,7 @@ static class Program
 
     private static async Task ProcessCallbackQueryUpdate(CallbackQuery callbackQuery)
     {
-        _logger.Information("Received CallbackQuery. Data: {data}.", callbackQuery.Data);
+        Logger.Information("Received CallbackQuery. Data: {data}.", callbackQuery.Data);
 
         var callbackData = callbackQuery.Data.Split(' ');
         if (callbackData[0] == "Edit")
@@ -169,7 +154,7 @@ static class Program
     private static async Task ProcessEditSetlist(int setlistIndex, long chatId, int messageId)
     {
         var itemsPerPage = userSearchSetlists[chatId] == null ? "null" : userSearchSetlists[chatId].ItemsPerPage.ToString();
-        _logger.Information("Process edit setlist. SetlistIndex: {setlistIndex}. ItemsPerPage: {itemsPerPage}.", setlistIndex, itemsPerPage);
+        Logger.Information("Process edit setlist. SetlistIndex: {setlistIndex}. ItemsPerPage: {itemsPerPage}.", setlistIndex, itemsPerPage);
 
         try
         {
@@ -193,13 +178,13 @@ static class Program
                 setlistIndex = userSearchSetlists[chatId].ItemsPerPage - 1; // because Count of array (i.e. ItemsPerPage) not equals last index in array.
             }
 
-            Setlist setlist = userSearchSetlists[chatId].Items.ElementAt(setlistIndex);
+            Setlist setlist = userSearchSetlists[chatId].Setlist[setlistIndex];
             await _bot.EditMessageText(chatId, messageId, Util.SetlistToText(setlist), ParseMode.Html,
-                replyMarkup: BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId].Items.ElementAt(setlistIndex).Url));
+                replyMarkup: BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId].Setlist[setlistIndex].Url));
         }
         catch (Exception ex)
         {
-            _logger.Error("Error occured while ProcessEditSetlist. Exception: {0}. Message: {1}. Inner: {2}.",
+            Logger.Error("Error occured while ProcessEditSetlist. Exception: {0}. Message: {1}. Inner: {2}.",
                 ex.GetType().Name, ex.Message, ex.InnerException == null ? "null" : ex.InnerException.GetType().Name + ", " + ex.InnerException.Message);
         }
     }
@@ -211,7 +196,7 @@ static class Program
 
     private static async Task ProcessTextMsg(Message message)
     {
-        _logger.Information("Received Text Msg: {text}. Session of {id}: {2}", message.Text, BotHelpers.GetDisplayName(message.From), sessionRequest.ContainsKey(message.From.Id));
+        Logger.Information("Received Text Msg: {text}. Session of {id}: {2}", message.Text, BotHelpers.GetDisplayName(message.From), sessionRequest.ContainsKey(message.From.Id));
 
         if (message.Text[0] == '/')
         {
@@ -278,7 +263,7 @@ static class Program
                                                 "So, why don't you try me? Use /search command and send me the name of your favorite band!");
     }
 
-    private static async Task ProcessSearchCmd(long chatId, string artistName = null)
+    private static async Task ProcessSearchCmd(long chatId, string? artistName = null)
     {
         if (string.IsNullOrEmpty(artistName))
         {
@@ -295,7 +280,7 @@ static class Program
     {
         if (string.IsNullOrEmpty(searchQuery))
         {
-            await _bot.SendMessage(chatId, botSearchAdvResponse, replyMarkup: BotHelpers.ForceReply(), parseMode: ParseMode.Markdown);
+            await _bot.SendMessage(chatId, botSearchAdvResponse, replyMarkup: BotHelpers.ForceReply(), parseMode: ParseMode.Html);
             sessionRequest[chatId] = "searchQuery";
         }
         else
@@ -308,16 +293,16 @@ static class Program
     {
         try
         {
-            var artists = await _setlistFm.SearchArtists(artistName: bandName);
-            if (artists.Items.Count == 1)
+            var artists = await _setlistFm.SearchArtists(artistName: bandName, sort: ArtistSort.Relevance);
+            if (artists.Artist.Count == 1)
             {
-                await FindRecentSetlists(artists.Items.First().MBID, chatId);
+                await FindRecentSetlists(artists.Artist[0].MBID, chatId);
             }
             else
             {
                 userSearchArtists[chatId] = artists;
                 await _bot.SendMessage(chatId, "Please, select a band you would like to see setlists for:",
-                    replyMarkup: BotHelpers.OptionsKeyboard(artists.Items.Select(a => a.GetNameWithDisambiguation()).ToArray()));
+                    replyMarkup: BotHelpers.OptionsKeyboard(artists.Artist.Select(a => a.GetNameWithDisambiguation()).ToArray()));
                 sessionRequest[chatId] = "clarifyBandName";
             }
         }
@@ -331,13 +316,13 @@ static class Program
             }
             else
             {
-                _logger.Error("WebException occured while FindBandsByName. Exception: {0}. Message: {1}. Inner: {2}.",
+                Logger.Error("WebException occured while FindBandsByName. Exception: {0}. Message: {1}. Inner: {2}.",
                     ex.GetType().Name, ex.Message, ex.InnerException == null ? "null" : ex.InnerException.GetType().Name + ", " + ex.InnerException.Message);
             }
         }
         catch (Exception ex)
         {
-            _logger.Error("Error occured while FindBandsByName. Exception: {0}. Message: {1}. Inner: {2}.",
+            Logger.Error("Error occured while FindBandsByName. Exception: {0}. Message: {1}. Inner: {2}.",
                 ex.GetType().Name, ex.Message, ex.InnerException == null ? "null" : ex.InnerException.GetType().Name + ", " + ex.InnerException.Message);
             await _bot.SendMessage(chatId, botErrorResponse, replyMarkup: BotHelpers.HideKeyboard());
             sessionRequest.Remove(chatId);
@@ -358,7 +343,7 @@ static class Program
             userQuery[chatId] = searchFields;
             userSearchSetlists[chatId] = setlists;
             await _bot.SendMessage(chatId, Util.SetlistsToTextHtml(setlists), ParseMode.Html, replyMarkup:
-                BotHelpers.OptionsKeyboard(setlists.Items.Select(s => s.EventDate.ToString("dd.MM.yyyy")).ToArray()));
+                BotHelpers.OptionsKeyboard(setlists.Setlist.Select(s => s.EventDate.ToString("dd.MM.yyyy"))));
 
             sessionRequest[chatId] = "recentSetlists";
         }
@@ -372,13 +357,13 @@ static class Program
             }
             else
             {
-                _logger.Error("WebException occured while FindBandsByQuery. Exception: {0}. Message: {1}. Inner: {2}.",
+                Logger.Error("WebException occured while FindBandsByQuery. Exception: {0}. Message: {1}. Inner: {2}.",
                     ex.GetType().Name, ex.Message, ex.InnerException == null ? "null" : ex.InnerException.GetType().Name + ", " + ex.InnerException.Message);
             }
         }
         catch (Exception ex)
         {
-            _logger.Error("Error occured while FindBandsByQuery. Exception: {0}. Message: {1}. Inner: {2}.",
+            Logger.Error("Error occured while FindBandsByQuery. Exception: {0}. Message: {1}. Inner: {2}.",
                 ex.GetType().Name, ex.Message, ex.InnerException == null ? "null" : ex.InnerException.GetType().Name + ", " + ex.InnerException.Message);
             await _bot.SendMessage(chatId, botErrorResponse, replyMarkup: BotHelpers.HideKeyboard());
             sessionRequest.Remove(chatId);
@@ -389,7 +374,7 @@ static class Program
     {
         try
         {
-            var artist = userSearchArtists[chatId].Items.FirstOrDefault(a => a.GetNameWithDisambiguation().Equals(nameWithDisambiguation));
+            var artist = userSearchArtists[chatId].Artist.FirstOrDefault(a => a.GetNameWithDisambiguation().Equals(nameWithDisambiguation));
             if (artist != null)
             {
                 await FindRecentSetlists(artist.MBID, chatId);
@@ -402,7 +387,7 @@ static class Program
         }
         catch (Exception ex)
         {
-            _logger.Error("Error occured while ClarifyBandName. Exception: {0}. Message: {1}. Inner: {2}.",
+            Logger.Error("Error occured while ClarifyBandName. Exception: {0}. Message: {1}. Inner: {2}.",
                 ex.GetType().Name, ex.Message, ex.InnerException == null ? "null" : ex.InnerException.GetType().Name + ", " + ex.InnerException.Message);
         }
     }
@@ -416,13 +401,13 @@ static class Program
             userArtistMbid[chatId] = mbid;
             userSearchSetlists[chatId] = artistSetlists;
             await _bot.SendMessage(chatId, Util.SetlistsToTextHtml(artistSetlists), ParseMode.Html, replyMarkup:
-                BotHelpers.OptionsKeyboard(artistSetlists.Items.Select(s => s.EventDate.ToString("dd.MM.yyyy")).ToArray()));
+                BotHelpers.OptionsKeyboard(artistSetlists.Setlist.Select(s => s.EventDate.ToString("dd.MM.yyyy"))));
 
             sessionRequest[chatId] = "recentSetlists";
         }
         catch (Exception ex)
         {
-            _logger.Error("Error occured while FindRecentSetlists. Exception: {0}. Message: {1}. Inner: {2}.",
+            Logger.Error("Error occured while FindRecentSetlists. Exception: {0}. Message: {1}. Inner: {2}.",
                 ex.GetType().Name, ex.Message, ex.InnerException == null ? "null" : ex.InnerException.GetType().Name + ", " + ex.InnerException.Message);
         }
     }
@@ -431,10 +416,10 @@ static class Program
     {
         try
         {
-            var setlist = userSearchSetlists[chatId].Items.FirstOrDefault(s => s.EventDate.ToString("dd.MM.yyyy").Equals(eventDate, StringComparison.InvariantCulture));
+            var setlist = userSearchSetlists[chatId].Setlist.FirstOrDefault(s => s.EventDate.ToString("dd.MM.yyyy").Equals(eventDate, StringComparison.InvariantCulture));
 
             int setlistIndex = 0;
-            foreach (var s in userSearchSetlists[chatId].Items)
+            foreach (var s in userSearchSetlists[chatId].Setlist)
             {
                 if (s == setlist)
                 {
@@ -446,10 +431,10 @@ static class Program
 
             if (setlistIndex != -1)
             {
-                await _bot.SendMessage(chatId, $"You can navigate through \"{userSearchSetlists[chatId].Items.ElementAt(setlistIndex).Artist.Name}\" setlists via Previous and Next buttons.", replyMarkup: BotHelpers.HideKeyboard());
-                var text = Util.SetlistToText(userSearchSetlists[chatId].Items.ElementAt(setlistIndex));
+                await _bot.SendMessage(chatId, $"You can navigate through \"{userSearchSetlists[chatId].Setlist[setlistIndex].Artist.Name}\" setlists via Previous and Next buttons.", replyMarkup: BotHelpers.HideKeyboard());
+                var text = Util.SetlistToText(userSearchSetlists[chatId].Setlist[setlistIndex]);
                 await _bot.SendMessage(chatId, text, ParseMode.Html, replyMarkup:
-                    BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId].Items.ElementAt(setlistIndex).Url));
+                    BotHelpers.GetNextPrevButtons(setlistIndex, userSearchSetlists[chatId], userSearchSetlists[chatId].Setlist[setlistIndex].Url));
             }
             else
             {
@@ -458,13 +443,13 @@ static class Program
         }
         catch (Exception ex)
         {
-            _logger.Error("Error occured while GetSetlist. Exception: {0}. Message: {1}. Inner: {2}.",
+            Logger.Error("Error occured while GetSetlist. Exception: {0}. Message: {1}. Inner: {2}.",
                 ex.GetType().Name, ex.Message, ex.InnerException == null ? "null" : ex.InnerException.GetType().Name + ", " + ex.InnerException.Message);
         }
     }
 
     private static async Task ProcessHelp(long chatId)
     {
-        await _bot.SendMessage(chatId, botHelpResponse, parseMode: ParseMode.Markdown);
+        await _bot.SendMessage(chatId, botHelpResponse, ParseMode.Html);
     }
 }

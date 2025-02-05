@@ -1,4 +1,4 @@
-﻿using SetlistNet.Models;
+﻿using SetlistNet.Models.Abstract;
 using System.Collections.Generic;
 using System.Linq;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -54,7 +54,16 @@ public static class BotHelpers
 
     public static IReplyMarkup OptionsKeyboard(params string[] args)
     {
-        var keyboard = args.Select(s => new KeyboardButton[] { s }).ToArray();
+        var keyboard = args.Select(s => new KeyboardButton[] { s });
+        return new ReplyKeyboardMarkup(keyboard)
+        {
+            OneTimeKeyboard = true
+        };
+    }
+    
+    public static IReplyMarkup OptionsKeyboard(IEnumerable<string> buttons)
+    {
+        var keyboard = buttons.Select(s => new KeyboardButton[] { s });
         return new ReplyKeyboardMarkup(keyboard)
         {
             OneTimeKeyboard = true
