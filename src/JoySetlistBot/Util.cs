@@ -46,7 +46,12 @@ public static class Util
 
             foreach (var song in set.Songs)
             {
-                text.AppendFormat("{0}. {1}", ++count, song.Name.Trim() == "" ? "Unknown" : song.Name);
+                // "ONE OK ROCK" - "The Pilot </3"
+                var songName = song.Name
+                    .Replace("<", "&lt;")
+                    .Replace(">", "&gt;");
+                
+                text.AppendFormat("{0}. {1}", ++count, songName.Trim() == "" ? "Unknown" : songName);
                 if (song.Cover != null || song.With != null)
                 {
                     text.Append(" (");
