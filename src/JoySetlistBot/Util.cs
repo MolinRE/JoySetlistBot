@@ -49,7 +49,8 @@ public static class Util
                 // "ONE OK ROCK" - "The Pilot </3"
                 var songName = song.Name
                     .Replace("<", "&lt;")
-                    .Replace(">", "&gt;");
+                    .Replace(">", "&gt;")
+                    .Replace("&", "&amp;");
                 
                 text.AppendFormat("{0}. {1}", ++count, songName.Trim() == "" ? "Unknown" : songName);
                 if (song.Cover != null || song.With != null)
