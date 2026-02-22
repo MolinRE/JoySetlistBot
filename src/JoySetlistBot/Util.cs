@@ -131,13 +131,8 @@ public static class Util
     }
 
     // Parse the query string and return Setlist object used to search for setlists
-    public static UserSearchQuery? ParseQuery(string query)
+    public static UserSearchQuery ParseQuery(string query)
     {
-        if (query.Length == 0)
-        {
-            return null;
-        }
-
         var result = new UserSearchQuery();
         string[] keywords = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         if (IsYear(keywords[^1]))

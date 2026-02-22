@@ -44,11 +44,10 @@ static class Program
     
     
     private static Dictionary<long, string> sessionRequest = new();
-    private static Dictionary<long, Location> userLocations = new();
 
-    private static IConfigurationRoot _configuration;
-    private static TelegramBotClient _bot;
-    private static SetlistApi _setlistFm;
+    private static IConfigurationRoot _configuration = null!;
+    private static TelegramBotClient _bot = null!;
+    private static SetlistApi _setlistFm = null!;
     private static readonly ILogger Logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
 
     static async Task Main()
@@ -102,15 +101,14 @@ static class Program
     private static async Task BotOnUpdate(Update update)
     {
         Logger.Information("Received [{type}].", update.Type);
-
-        switch (update.Type)
+        if (update.Message is {  } message)
         {
-            case UpdateType.Message:
-                await ProcessMessageUpdate(update.Message);
-                break;
-            case UpdateType.CallbackQuery:
-                await ProcessCallbackQueryUpdate(update.CallbackQuery);
-                break;
+            await ProcessMessageUpdate(message);
+        }
+
+        if (update.CallbackQuery is { } callback)
+        {
+            await ProcessCallbackQueryUpdate(callback);
         }
     }
 
@@ -123,11 +121,8 @@ static class Program
                 case MessageType.Text:
                     await ProcessTextMsg(message);
                     break;
-                case MessageType.Location:
-                    ProcessLocation(message);
-                    break;
                 default:
-                    await _bot.SendMessage(message.From.Id, "I can't work with " + message.Type + " :(");
+                    await _bot.SendMessage(message.From!.Id, "I can't work with " + message.Type + " :(");
                     break;
             }
         }
@@ -141,12 +136,17 @@ static class Program
 
     private static async Task ProcessCallbackQueryUpdate(CallbackQuery callbackQuery)
     {
+        if (callbackQuery.Data == null)
+        {
+            return;
+        }
+
         Logger.Information("Received CallbackQuery. Data: {data}.", callbackQuery.Data);
 
         var callbackData = callbackQuery.Data.Split(' ');
         if (callbackData[0] == "Edit")
         {
-            await ProcessEditSetlist(Convert.ToInt32(callbackData[1]), (int)callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId);
+            await ProcessEditSetlist(Convert.ToInt32(callbackData[1]), (int)callbackQuery.Message!.Chat.Id, callbackQuery.Message.MessageId);
         }
     }
 
@@ -189,19 +189,19 @@ static class Program
         }
     }
 
-    private static void ProcessLocation(Message message)
-    {
-        userLocations[message.From.Id] = message.Location;
-    }
-
     private static async Task ProcessTextMsg(Message message)
     {
+        if (message.Text == null || message.From == null)
+        {
+            return;
+        }
+        
         Logger.Information("Received Text Msg: {text}. Session of {id}: {2}", message.Text, BotHelpers.GetDisplayName(message.From), sessionRequest.ContainsKey(message.From.Id));
 
         if (message.Text[0] == '/')
         {
             var commandWords = message.Text.Split(' ');
-            string additionParams = null;
+            string? additionParams = null;
             if (commandWords.Length > 0)
                 additionParams = string.Join(" ", commandWords, 1, commandWords.Length - 1);
 
@@ -276,7 +276,7 @@ static class Program
         }
     }
 
-    private static async Task ProcessSearchAdvCmd(long chatId, string searchQuery = null)
+    private static async Task ProcessSearchAdvCmd(long chatId, string? searchQuery = null)
     {
         if (string.IsNullOrEmpty(searchQuery))
         {
@@ -309,7 +309,7 @@ static class Program
         catch (WebException ex)
         {
             var response = ex.Response as HttpWebResponse;
-            if (response.StatusCode == HttpStatusCode.NotFound)
+            if (response?.StatusCode == HttpStatusCode.NotFound)
             {
                 await _bot.SendMessage(chatId, botSearchNoResultsResponse, replyMarkup: BotHelpers.HideKeyboard());
                 sessionRequest.Remove(chatId);
@@ -350,7 +350,7 @@ static class Program
         catch (WebException ex)
         {
             var response = ex.Response as HttpWebResponse;
-            if (response.StatusCode == HttpStatusCode.NotFound)
+            if (response?.StatusCode == HttpStatusCode.NotFound)
             {
                 await _bot.SendMessage(chatId, botSearchAdvNoResultsResponse, replyMarkup: BotHelpers.HideKeyboard());
                 sessionRequest.Remove(chatId);
